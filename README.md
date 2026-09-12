@@ -7,12 +7,17 @@ TabMate is an ad-free Telegram Mini App and bot for splitting group expenses and
 ## Features
 
 - **Telegram bot with long polling:** Runs locally without webhooks, custom domains, or SSL certificates.
-- **Minimum cash flow debt engine:** Resolves circular debts and multi-person splits into minimal pairwise payments.
-- **Multiple split models:** Supports equal splits, exact custom amounts, and weighted shares.
-- **One-tap settlement links:** Generates direct payment links for Revolut (`revolut.me/<user>`), PayPal (`paypal.me/<user>/<amount>`), Monzo (`monzo.me/<user>/<amount>`), or bank IBAN copying.
-- **Standalone web preview:** Includes a local browser mock shell so you can test all member perspectives without multiple Telegram accounts.
-- **CSV export:** Exports full expense history with dates, categories, payers, and amounts.
-- **Zero native build dependencies:** Built on Node.js with built-in SQLite in WAL mode.
+- **Smart natural language expense parser:** Add expenses directly from chat using patterns like `/split 85 Dinner paid by Alex except Marco`.
+- **Minimum cash flow debt engine:** Resolves circular debts and multi-party debt chains into the absolute minimum pairwise payments.
+- **Multi-currency engine:** Record expenses in EUR, USD, GBP, CHF, RON, MDL, PLN, or TRY with real-time conversion rates and offline fallback.
+- **Partial debt settlements:** Settle debts partially or in full with support for Revolut (`revolut.me`), PayPal (`paypal.me`), Monzo (`monzo.me`), or IBAN copying.
+- **Visual analytics tab:** Built-in SVG donut chart, top categories, personal share metrics, and member comparison bars.
+- **Itemized receipt line-item splitter:** Split complex restaurant or supermarket bills by specific items and assign custom shares with proportional tip/tax distribution.
+- **Splitwise & Tricount CSV import:** Migrate existing trips and expense groups with one click by uploading or pasting CSV exports.
+- **Printable HTML/PDF settlement report:** Generate clean, print-ready settlement summaries for trip record-keeping.
+- **1-tap expense duplication & payment nudges:** Quick re-use of recurring expenses and friendly Telegram debt reminders.
+- **Standalone web preview:** Includes a local browser mock shell to inspect any member perspective without Telegram accounts.
+- **Zero native build dependencies:** Built on Node.js using built-in `node:sqlite` in WAL mode.
 
 ## Quick Start
 
@@ -77,9 +82,11 @@ For detailed instructions on menu buttons and privacy settings, see [docs/TELEGR
 | Command | Chat Type | Description |
 | :--- | :--- | :--- |
 | `/start` | Private / Group | Displays welcome screen, personal balances, and Mini App launcher |
-| `/split <amount> <title>` | Group | Registers an expense and replies with an interactive split button |
+| `/split <amount> <title> [paid by X] [except Y]` | Group | Natural language expense registration with auto-member matching |
 | `/balance` | Group | Prints a text summary of who owes whom in the group |
-| `/settle` | Group | Provides payment links to settle outstanding debts |
+| `/settle` | Group | Provides direct payment links to settle outstanding debts |
+| `/nudge` | Group | Sends a polite, actionable payment reminder to pending debtors |
+| `/rates` | Private / Group | Shows current live currency exchange rates |
 | `/demo` | Private | Opens the pre-seeded Rome vacation demo group |
 
 ## Project Structure

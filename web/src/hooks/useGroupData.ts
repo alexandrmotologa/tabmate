@@ -101,12 +101,13 @@ export function useGroupData(initialGroupId = 'demo') {
     fromMemberId: string,
     toMemberId: string,
     amount: number,
+    paymentMethod = 'revolut',
     notes?: string
   ) => {
     const res = await fetch(`/api/groups/${groupId}/settlements`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fromMemberId, toMemberId, amount, notes }),
+      body: JSON.stringify({ fromMemberId, toMemberId, amount, paymentMethod, notes }),
     });
 
     if (!res.ok) {

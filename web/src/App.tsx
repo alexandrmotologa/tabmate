@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   Receipt,
   Sparkles,
@@ -7,15 +6,25 @@ import {
   Settings,
   Plus,
   Compass,
+  PieChart,
+  Printer,
+  UploadCloud,
+  Calculator,
 } from 'lucide-react';
 import { useGroupData } from './hooks/useGroupData.js';
 import { useTelegram } from './hooks/useTelegram.js';
 import { BalanceCard } from './components/BalanceCard.js';
 import { ExpenseList } from './components/ExpenseList.js';
 import { SettlementView } from './components/SettlementView.js';
+import { AnalyticsView } from './components/AnalyticsView.js';
 import { AddExpenseModal } from './components/AddExpenseModal.js';
 import { PaymentSettingsModal } from './components/PaymentSettingsModal.js';
+import { ImportCsvModal } from './components/ImportCsvModal.js';
+import { ReceiptSplitModal } from './components/ReceiptSplitModal.js';
 import { DevBanner } from './components/DevBanner.js';
+import { Expense } from './types.js';
+
+import { useState } from 'react';
 
 export function App() {
   const {
@@ -36,10 +45,27 @@ export function App() {
 
   const { haptic, isTelegram } = useTelegram();
 
-  const [activeTab, setActiveTab] = useState<'expenses' | 'settle'>('expenses');
+  const [activeTab, setActiveTab] = useState<'expenses' | 'settle' | 'analytics'>('expenses');
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [isPaymentSettingsOpen, setIsPaymentSettingsOpen] = useState(false);
+  const [isImportCsvOpen, setIsImportCsvOpen] = useState(false);
+  const [isReceiptSplitOpen, setIsReceiptSplitOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleDuplicateExpense = async (exp: Expense) => {
+    haptic.impact('light');
+    await addExpense({
+      title: `${exp.title} (Copy)`,
+      amount: exp.amount,
+      currency: exp.currency,
+      paidByMemberId: exp.paid_by_member_id,
+      category: exp.category,
+      splitType: exp.split_type as any,
+      notes: exp.notes,
+      splits: exp.splits.map((s) => ({ memberId: s.member_id, amount: s.amount })),
+    });
+    haptic.notification('success');
+  };
 
   const handleRefresh = async () => {
     haptic.impact('light');
@@ -62,16 +88,34 @@ export function App() {
     fromId: string,
     toId: string,
     amount: number,
+    paymentMethod = 'revolut',
     notes?: string
   ) => {
     haptic.impact('heavy');
-    await settleDebt(fromId, toId, amount, notes);
+    await settleDebt(fromId, toId, amount, paymentMethod, notes);
     haptic.notification('success');
   };
 
   const handleUndoSettlementWithHaptic = async (settlementId: string) => {
     haptic.impact('medium');
     await deleteSettlement(settlementId);
+  };
+
+  const handleSendNudge = async (fromUserId: string, toUserId: string, amount: number) => {
+    haptic.impact('medium');
+    try {
+      const res = await fetch(`/api/groups/${groupId}/nudge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fromUserId, toUserId, amount }),
+      });
+      const d = await res.json();
+      haptic.notification('success');
+      alert(d.message || 'Payment nudge sent!');
+    } catch {
+      haptic.notification('error');
+      alert('Could not send reminder');
+    }
   };
 
   const handleDownloadCsv = () => {
@@ -147,6 +191,30 @@ export function App() {
 
           <div className="flex items-center space-x-1">
             <button
+              onClick={() => window.open(`/api/groups/${groupId}/report.html`, '_blank')}
+              title="Print Settlement Report"
+              className="p-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              <Printer className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => setIsImportCsvOpen(true)}
+              title="Import CSV (Splitwise/Tricount)"
+              className="p-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              <UploadCloud className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => setIsReceiptSplitOpen(true)}
+              title="Itemized Receipt Splitter"
+              className="p-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              <Calculator className="w-4 h-4" />
+            </button>
+
+            <button
               onClick={handleRefresh}
               title="Refresh balances"
               className="p-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
@@ -181,20 +249,20 @@ export function App() {
         />
 
         {/* Navigation Tabs */}
-        <div className="grid grid-cols-2 rounded-2xl bg-slate-900/90 p-1 border border-slate-800 text-xs font-bold">
+        <div className="grid grid-cols-3 rounded-2xl bg-slate-900/90 p-1 border border-slate-800 text-xs font-bold">
           <button
             onClick={() => {
               haptic.selection();
               setActiveTab('expenses');
             }}
-            className={`flex items-center justify-center space-x-2 py-2.5 rounded-xl transition-all ${
+            className={`flex items-center justify-center space-x-1.5 py-2.5 rounded-xl transition-all ${
               activeTab === 'expenses'
                 ? 'bg-blue-600 text-white shadow'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Receipt className="w-4 h-4" />
-            <span>Expenses ({data.expenses.length})</span>
+            <Receipt className="w-3.5 h-3.5" />
+            <span className="truncate">Bills ({data.expenses.length})</span>
           </button>
 
           <button
@@ -202,14 +270,29 @@ export function App() {
               haptic.selection();
               setActiveTab('settle');
             }}
-            className={`flex items-center justify-center space-x-2 py-2.5 rounded-xl transition-all ${
+            className={`flex items-center justify-center space-x-1.5 py-2.5 rounded-xl transition-all ${
               activeTab === 'settle'
                 ? 'bg-blue-600 text-white shadow'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Sparkles className="w-4 h-4 text-amber-300" />
-            <span>Settlements ({data.simplifiedDebts.length})</span>
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span className="truncate">Debts ({data.simplifiedDebts.length})</span>
+          </button>
+
+          <button
+            onClick={() => {
+              haptic.selection();
+              setActiveTab('analytics');
+            }}
+            className={`flex items-center justify-center space-x-1.5 py-2.5 rounded-xl transition-all ${
+              activeTab === 'analytics'
+                ? 'bg-blue-600 text-white shadow'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <PieChart className="w-3.5 h-3.5 text-purple-300" />
+            <span className="truncate">Insights</span>
           </button>
         </div>
 
@@ -220,8 +303,9 @@ export function App() {
             activeMemberId={activeMemberId}
             currency={data.group.currency}
             onDeleteExpense={deleteExpense}
+            onDuplicateExpense={handleDuplicateExpense}
           />
-        ) : (
+        ) : activeTab === 'settle' ? (
           <SettlementView
             simplifiedDebts={data.simplifiedDebts}
             settlements={data.settlements}
@@ -231,7 +315,10 @@ export function App() {
             onSettleDebt={handleSettleDebtWithHaptic}
             onUndoSettlement={handleUndoSettlementWithHaptic}
             onOpenPaymentSettings={() => setIsPaymentSettingsOpen(true)}
+            onSendNudge={handleSendNudge}
           />
+        ) : (
+          <AnalyticsView groupId={groupId} currency={data.group.currency} />
         )}
       </main>
 
@@ -265,6 +352,28 @@ export function App() {
           if (activeMemberId) {
             await updatePaymentHandles(activeMemberId, handles);
           }
+        }}
+      />
+
+      {/* Import CSV Modal */}
+      <ImportCsvModal
+        isOpen={isImportCsvOpen}
+        onClose={() => setIsImportCsvOpen(false)}
+        groupId={groupId}
+        onSuccess={async () => {
+          await refresh();
+        }}
+      />
+
+      {/* Itemized Receipt Split Modal */}
+      <ReceiptSplitModal
+        isOpen={isReceiptSplitOpen}
+        onClose={() => setIsReceiptSplitOpen(false)}
+        members={data.members}
+        activeMemberId={activeMemberId}
+        currency={data.group.currency}
+        onSaveExpense={async (expense) => {
+          await addExpense(expense);
         }}
       />
     </div>

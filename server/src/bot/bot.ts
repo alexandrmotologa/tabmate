@@ -2,6 +2,8 @@ import { Bot, InlineKeyboard } from 'grammy';
 import crypto from 'crypto';
 import { queries } from '../db/queries.js';
 import { calculateNetBalances, simplifyDebts } from '../engine/settle.js';
+import { parseNaturalLanguageExpense } from './parser.js';
+import { fetchExchangeRates } from '../engine/currency.js';
 
 export function createTelegramBot(token?: string, webAppUrl?: string): Bot | null {
   if (!token || token === 'mock_token' || token.trim() === '') {
@@ -62,10 +64,11 @@ export function createTelegramBot(token?: string, webAppUrl?: string): Bot | nul
     }
   });
 
-  // /split <amount> <title>
+  // /split <amount> <title> with natural language support
   bot.command('split', async (ctx) => {
     const text = ctx.match?.trim();
     const group = getOrCreateGroupForChat(ctx.chat.id, ctx.chat.title);
+    const engineData = queries.getGroupEngineData(group.id);
 
     if (!text) {
       const keyboard = new InlineKeyboard().webApp(
@@ -74,37 +77,103 @@ export function createTelegramBot(token?: string, webAppUrl?: string): Bot | nul
       );
       await ctx.reply(
         `To log an expense, type: \`/split <amount> <description>\`\n\n` +
-          `Example: \`/split 48.50 Pizza & drinks\``,
+          `Examples:\n` +
+          `• \`/split 48.50 Pizza & drinks\`\n` +
+          `• \`/split 120 Hotel paid by Alex except Marco\`\n` +
+          `• \`/split 35 Taxi with Dan\``,
         { reply_markup: keyboard, parse_mode: 'Markdown' }
       );
       return;
     }
 
-    const parts = text.split(/\s+/);
-    const amountStr = parts[0].replace(',', '.');
-    const amount = parseFloat(amountStr);
-
-    if (isNaN(amount) || amount <= 0) {
-      await ctx.reply('⚠️ Please provide a valid positive amount. Example: `/split 25 Gelato`', {
-        parse_mode: 'Markdown',
-      });
+    const parsed = parseNaturalLanguageExpense(text, engineData.members, ctx.from?.id);
+    if (!parsed) {
+      await ctx.reply(
+        '⚠️ Could not parse amount from your message. Example: `/split 25 Gelato paid by Sofia`',
+        { parse_mode: 'Markdown' }
+      );
       return;
     }
 
-    const title = parts.slice(1).join(' ') || 'Shared Expense';
+    const amount = parsed.amount;
+    const title = parsed.title;
+
+    let deepLink = `${appUrl}?groupId=${group.id}&amount=${amount}&title=${encodeURIComponent(title)}`;
+    if (parsed.payerMemberId) {
+      deepLink += `&paidBy=${parsed.payerMemberId}`;
+    }
+
+    let summary = `💸 **Expense Ready to Split:**\n` +
+      `• **Item:** ${title}\n` +
+      `• **Amount:** €${amount.toFixed(2)}\n`;
+
+    if (parsed.payerName) {
+      summary += `• **Paid by:** ${parsed.payerName}\n`;
+    }
+    if (parsed.excludedMemberIds && parsed.excludedMemberIds.length > 0) {
+      const excludedNames = engineData.members
+        .filter((m) => parsed.excludedMemberIds?.includes(m.id))
+        .map((m) => m.name)
+        .join(', ');
+      summary += `• **Excluded:** ${excludedNames}\n`;
+    }
 
     const keyboard = new InlineKeyboard().webApp(
       `💳 Split €${amount.toFixed(2)} in TabMate`,
-      `${appUrl}?groupId=${group.id}&amount=${amount}&title=${encodeURIComponent(title)}`
+      deepLink
     );
 
-    await ctx.reply(
-      `💸 **Expense ready to split:**\n` +
-        `• **Item:** ${title}\n` +
-        `• **Amount:** €${amount.toFixed(2)}\n\n` +
-        `Tap below to select who was involved and save!`,
-      { reply_markup: keyboard, parse_mode: 'Markdown' }
+    await ctx.reply(`${summary}\nTap below to confirm participants and save!`, {
+      reply_markup: keyboard,
+      parse_mode: 'Markdown',
+    });
+  });
+
+  // /rates command
+  bot.command('rates', async (ctx) => {
+    const rates = await fetchExchangeRates('EUR');
+    const msg =
+      `💱 **Live Exchange Rates (Base: 1 EUR):**\n\n` +
+      `• **USD:** $${rates.USD?.toFixed(2) || '1.08'}\n` +
+      `• **GBP:** £${rates.GBP?.toFixed(2) || '0.85'}\n` +
+      `• **RON:** ${rates.RON?.toFixed(2) || '4.98'} lei\n` +
+      `• **JPY:** ¥${rates.JPY?.toFixed(1) || '162.5'}\n` +
+      `• **CHF:** ${rates.CHF?.toFixed(2) || '0.95'} Fr\n\n` +
+      `You can log expenses in any of these currencies in TabMate.`;
+
+    await ctx.reply(msg, { parse_mode: 'Markdown' });
+  });
+
+  // /nudge command
+  bot.command('nudge', async (ctx) => {
+    const group = getOrCreateGroupForChat(ctx.chat.id, ctx.chat.title);
+    const engineData = queries.getGroupEngineData(group.id);
+
+    const balances = calculateNetBalances(
+      engineData.members,
+      engineData.expenses,
+      engineData.splits,
+      engineData.settlements
     );
+    const debts = simplifyDebts(balances);
+
+    if (debts.length === 0) {
+      await ctx.reply('🎉 All settled up! No one owes anything right now.');
+      return;
+    }
+
+    let nudgeMsg = `👋 **Gentle Settlement Reminder for "${group.title}":**\n\n`;
+    for (const d of debts) {
+      nudgeMsg += `• **${d.fromName}**, you owe **${d.toName}** €${d.amount.toFixed(2)}\n`;
+    }
+    nudgeMsg += `\nTap below to settle via Revolut or PayPal:`;
+
+    const keyboard = new InlineKeyboard().webApp(
+      '⚡ Settle Now in TabMate',
+      `${appUrl}?groupId=${group.id}&tab=settle`
+    );
+
+    await ctx.reply(nudgeMsg, { reply_markup: keyboard, parse_mode: 'Markdown' });
   });
 
   // /balance command

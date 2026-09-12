@@ -9,6 +9,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { SettlementTransaction, SettlementRecord, Member } from '../types.js';
+import { SettleDebtModal } from './SettleDebtModal.js';
 
 interface SettlementViewProps {
   simplifiedDebts: SettlementTransaction[];
@@ -16,9 +17,16 @@ interface SettlementViewProps {
   members: Member[];
   activeMemberId: string;
   currency: string;
-  onSettleDebt: (fromId: string, toId: string, amount: number, notes?: string) => Promise<void>;
+  onSettleDebt: (
+    fromId: string,
+    toId: string,
+    amount: number,
+    paymentMethod?: string,
+    notes?: string
+  ) => Promise<void>;
   onUndoSettlement: (settlementId: string) => Promise<void>;
   onOpenPaymentSettings: () => void;
+  onSendNudge?: (fromUserId: string, toUserId: string, amount: number) => void;
 }
 
 export const SettlementView: React.FC<SettlementViewProps> = ({
@@ -30,11 +38,12 @@ export const SettlementView: React.FC<SettlementViewProps> = ({
   onSettleDebt,
   onUndoSettlement,
   onOpenPaymentSettings,
+  onSendNudge,
 }) => {
   const [copiedIban, setCopiedIban] = useState<string | null>(null);
-  const [settlingId, setSettlingId] = useState<string | null>(null);
   const [undoingId, setUndoingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
+  const [selectedTxForModal, setSelectedTxForModal] = useState<SettlementTransaction | null>(null);
 
   const copyIban = (iban: string) => {
     navigator.clipboard.writeText(iban);
@@ -42,19 +51,8 @@ export const SettlementView: React.FC<SettlementViewProps> = ({
     setTimeout(() => setCopiedIban(null), 2500);
   };
 
-  const handleSettle = async (tx: SettlementTransaction) => {
-    const key = `${tx.fromUserId}-${tx.toUserId}`;
-    try {
-      setSettlingId(key);
-      await onSettleDebt(
-        tx.fromUserId,
-        tx.toUserId,
-        tx.amount,
-        `Direct settlement between ${tx.fromName} and ${tx.toName}`
-      );
-    } finally {
-      setSettlingId(null);
-    }
+  const handleOpenSettleModal = (tx: SettlementTransaction) => {
+    setSelectedTxForModal(tx);
   };
 
   const handleUndo = async (id: string) => {
@@ -127,7 +125,6 @@ export const SettlementView: React.FC<SettlementViewProps> = ({
               const isCreditor = tx.toUserId === activeMemberId;
               const fromMember = members.find((m) => m.id === tx.fromUserId);
               const toMember = members.find((m) => m.id === tx.toUserId);
-              const isBusy = settlingId === `${tx.fromUserId}-${tx.toUserId}`;
 
               return (
                 <div
@@ -237,15 +234,26 @@ export const SettlementView: React.FC<SettlementViewProps> = ({
                       )}
                     </div>
 
-                    {/* Mark as Settled Button */}
-                    <button
-                      onClick={() => handleSettle(tx)}
-                      disabled={isBusy}
-                      className="w-full mt-2 py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-[0.99] text-xs font-semibold text-slate-200 border border-slate-700 transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
-                    >
-                      <CheckCircle className="w-4 h-4 text-emerald-400" />
-                      <span>{isBusy ? 'Marking Settled...' : 'Mark as Settled'}</span>
-                    </button>
+                    {/* Settle Up Button */}
+                    <div className="flex items-center space-x-2 mt-2">
+                      <button
+                        onClick={() => handleOpenSettleModal(tx)}
+                        className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-[0.99] text-xs font-bold text-white transition-all flex items-center justify-center space-x-2 shadow-md shadow-blue-600/20"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Settle or Partial Pay</span>
+                      </button>
+
+                      {onSendNudge && (
+                        <button
+                          onClick={() => onSendNudge(tx.fromUserId, tx.toUserId, tx.amount)}
+                          title="Send reminder to debtor"
+                          className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition-colors"
+                        >
+                          Nudge 👋
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -253,6 +261,19 @@ export const SettlementView: React.FC<SettlementViewProps> = ({
           )}
         </div>
       )}
+
+      {/* Settle Debt Modal */}
+      <SettleDebtModal
+        isOpen={Boolean(selectedTxForModal)}
+        onClose={() => setSelectedTxForModal(null)}
+        transaction={selectedTxForModal}
+        fromMember={members.find((m) => m.id === selectedTxForModal?.fromUserId)}
+        toMember={members.find((m) => m.id === selectedTxForModal?.toUserId)}
+        currency={currency}
+        onConfirm={async (fromId, toId, amount, paymentMethod, notes) => {
+          await onSettleDebt(fromId, toId, amount, paymentMethod, notes);
+        }}
+      />
 
       {/* Settlement History */}
       {activeTab === 'history' && (

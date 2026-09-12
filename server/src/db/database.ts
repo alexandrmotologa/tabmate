@@ -74,6 +74,7 @@ export function getDatabase(dbPath?: string): DatabaseSync {
       from_member_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
       to_member_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
       amount REAL NOT NULL,
+      payment_method TEXT DEFAULT 'revolut',
       notes TEXT,
       settled_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -83,6 +84,13 @@ export function getDatabase(dbPath?: string): DatabaseSync {
     CREATE INDEX IF NOT EXISTS idx_splits_expense ON expense_splits(expense_id);
     CREATE INDEX IF NOT EXISTS idx_settlements_group ON settlements(group_id);
   `);
+
+  // Safe migration for payment_method if table already existed
+  try {
+    db.exec(`ALTER TABLE settlements ADD COLUMN payment_method TEXT DEFAULT 'revolut';`);
+  } catch {
+    // Column already exists
+  }
 
   dbInstance = db;
   return dbInstance;

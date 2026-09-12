@@ -345,3 +345,103 @@ Date,Title,Category,Paid By,Amount,Currency,Notes
 "2026-09-12 11:08:29","Airbnb Villa Trastevere","lodging","Alex",360.00,"EUR","3 nights stay in Rome center"
 "2026-09-12 11:08:29","Colosseum & Roman Forum Tickets","entertainment","Elena",125.00,"EUR","Skip-the-line group ticket"
 ```
+
+---
+
+## Analytics & Insights
+
+### `GET /api/groups/:id/analytics`
+Calculates visual spending analytics, category breakdowns, member spending comparisons, and top category metrics.
+
+**Response:**
+```json
+{
+  "totalGroupSpend": 570.0,
+  "expenseCount": 4,
+  "topCategory": "lodging",
+  "categoryBreakdown": [
+    { "category": "lodging", "total": 360.0, "percentage": 63.16 },
+    { "category": "entertainment", "total": 125.0, "percentage": 21.93 },
+    { "category": "food", "total": 85.0, "percentage": 14.91 }
+  ],
+  "memberSpending": [
+    { "memberId": "m-alex", "name": "Alex", "totalPaid": 360.0, "totalShare": 142.5, "net": 217.5 },
+    { "memberId": "m-elena", "name": "Elena", "totalPaid": 125.0, "totalShare": 142.5, "net": -17.5 }
+  ]
+}
+```
+
+---
+
+## Multi-Currency Rates
+
+### `GET /api/rates?base=EUR`
+Fetches live and cached exchange rates against supported currencies (`EUR`, `USD`, `GBP`, `CHF`, `RON`, `MDL`, `PLN`, `TRY`).
+
+**Response:**
+```json
+{
+  "base": "EUR",
+  "rates": {
+    "EUR": 1.0,
+    "USD": 1.08,
+    "GBP": 0.85,
+    "RON": 4.97,
+    "MDL": 19.3
+  }
+}
+```
+
+---
+
+## CSV Migration & Import
+
+### `POST /api/groups/:id/import-csv`
+Parses CSV exports from Splitwise or Tricount, automatically creating missing members and recording imported expenses.
+
+**Request Body:**
+```json
+{
+  "csvContent": "Date,Description,Cost,Currency,Alex,Elena,Marco,Dan\n2026-09-10,Pasta Dinner,80.00,EUR,80.00,0,0,0"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "importedCount": 1,
+  "membersCreated": []
+}
+```
+
+---
+
+## Printable Settlement Report
+
+### `GET /api/groups/:id/report.html`
+Renders a clean, standalone, printable HTML settlement and expense audit sheet for PDF export or archiving.
+
+---
+
+## Friendly Debt Reminders
+
+### `POST /api/groups/:id/nudge`
+Sends an actionable debt settlement reminder from a creditor to a debtor.
+
+**Request Body:**
+```json
+{
+  "fromUserId": "m-alex",
+  "toUserId": "m-marco",
+  "amount": 90.0
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Payment reminder triggered for Marco."
+}
+```

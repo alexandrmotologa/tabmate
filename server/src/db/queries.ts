@@ -52,6 +52,7 @@ export interface SettlementRow {
   from_member_id: string;
   to_member_id: string;
   amount: number;
+  payment_method?: string;
   notes?: string;
   settled_at: string;
   from_name?: string;
@@ -265,15 +266,24 @@ export const queries = {
     fromMemberId: string,
     toMemberId: string,
     amount: number,
+    paymentMethod?: string,
     notes?: string
   ): SettlementRow {
     const db = getDatabase();
     const stmt = db.prepare(`
-      INSERT INTO settlements (id, group_id, from_member_id, to_member_id, amount, notes)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO settlements (id, group_id, from_member_id, to_member_id, amount, payment_method, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
       RETURNING *
     `);
-    return stmt.get(id, groupId, fromMemberId, toMemberId, amount, notes || null) as unknown as SettlementRow;
+    return stmt.get(
+      id,
+      groupId,
+      fromMemberId,
+      toMemberId,
+      amount,
+      paymentMethod || 'revolut',
+      notes || null
+    ) as unknown as SettlementRow;
   },
 
   deleteSettlement(settlementId: string): void {

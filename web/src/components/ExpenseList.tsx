@@ -9,6 +9,7 @@ import {
   Trash2,
   Search,
   Users,
+  Copy,
 } from 'lucide-react';
 import { Expense } from '../types.js';
 
@@ -17,6 +18,7 @@ interface ExpenseListProps {
   activeMemberId: string;
   currency: string;
   onDeleteExpense: (id: string) => Promise<void>;
+  onDuplicateExpense?: (expense: Expense) => void;
 }
 
 const CATEGORY_ICONS: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
@@ -33,6 +35,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
   activeMemberId,
   currency,
   onDeleteExpense,
+  onDuplicateExpense,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -184,6 +187,17 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
                       </div>
                     )}
                   </div>
+
+                  {/* Duplicate action */}
+                  {onDuplicateExpense && (
+                    <button
+                      onClick={() => onDuplicateExpense(expense)}
+                      title="Duplicate expense"
+                      className="p-1.5 rounded-lg text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  )}
 
                   {/* Delete action */}
                   <button

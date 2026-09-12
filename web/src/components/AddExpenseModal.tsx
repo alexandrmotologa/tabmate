@@ -46,6 +46,17 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [rates, setRates] = useState<Record<string, number>>({});
+
+  // Fetch exchange rates
+  React.useEffect(() => {
+    fetch(`/api/exchange-rates?base=${defaultCurrency || 'EUR'}`)
+      .then((res) => res.json())
+      .then((d) => {
+        if (d.rates) setRates(d.rates);
+      })
+      .catch(() => {});
+  }, [defaultCurrency]);
 
   // Equal split: Set of participating member IDs (defaults to all)
   const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(
@@ -189,8 +200,15 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
                 <option value="USD">USD ($)</option>
                 <option value="GBP">GBP (£)</option>
                 <option value="RON">RON (lei)</option>
+                <option value="JPY">JPY (¥)</option>
+                <option value="CHF">CHF (Fr)</option>
               </select>
             </div>
+            {currency !== defaultCurrency && numericAmount > 0 && rates[currency] && (
+              <p className="text-[11px] text-blue-400 font-medium">
+                ≈ {(numericAmount / rates[currency]).toFixed(2)} {defaultCurrency} (auto-converted to group currency)
+              </p>
+            )}
           </div>
 
           {/* Title & Quick Presets */}

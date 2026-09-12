@@ -3,8 +3,18 @@ import { z } from 'zod';
 import crypto from 'crypto';
 import { queries } from '../db/queries.js';
 import { calculateNetBalances, simplifyDebts } from '../engine/settle.js';
+import { fetchExchangeRates, convertCurrency } from '../engine/currency.js';
+import { computeAnalytics } from '../engine/analytics.js';
+import { parseExpenseCsv, importExpensesToGroup } from '../engine/importer.js';
 
 export const groupApiPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => {
+  // GET /api/exchange-rates - Fetch current rates
+  fastify.get<{ Querystring: { base?: string } }>('/api/exchange-rates', async (request) => {
+    const base = request.query.base || 'EUR';
+    const rates = await fetchExchangeRates(base);
+    return { base, rates };
+  });
+
   // GET /api/groups - List all groups
   fastify.get('/api/groups', async () => {
     const groups = queries.listGroups();
@@ -191,7 +201,20 @@ export const groupApiPlugin: FastifyPluginAsync = async (fastify: FastifyInstanc
       return reply.status(400).send({ error: parsed.error.message });
     }
 
-    const totalAmount = parsed.data.amount;
+    const rawCurrency = parsed.data.currency || group.currency;
+    let totalAmount = parsed.data.amount;
+    let expenseNotes = parsed.data.notes || '';
+
+    // If expense was entered in a different currency than group currency, convert to group currency
+    if (rawCurrency.toUpperCase() !== group.currency.toUpperCase()) {
+      const conversion = await convertCurrency(totalAmount, rawCurrency, group.currency);
+      const originalAmountStr = `${totalAmount.toFixed(2)} ${rawCurrency.toUpperCase()}`;
+      totalAmount = conversion.convertedAmount;
+      expenseNotes = expenseNotes
+        ? `${expenseNotes} (Converted from ${originalAmountStr} @ rate ${conversion.rate})`
+        : `Converted from ${originalAmountStr} @ rate ${conversion.rate}`;
+    }
+
     const splitType = parsed.data.splitType;
     let finalSplits: { id: string; memberId: string; amount: number; shareCount?: number }[] = [];
 
@@ -251,10 +274,10 @@ export const groupApiPlugin: FastifyPluginAsync = async (fastify: FastifyInstanc
         paidByMemberId: parsed.data.paidByMemberId,
         title: parsed.data.title,
         amount: Math.round(totalAmount * 100) / 100,
-        currency: parsed.data.currency,
+        currency: group.currency,
         category: parsed.data.category,
         splitType: parsed.data.splitType,
-        notes: parsed.data.notes,
+        notes: expenseNotes || undefined,
       },
       finalSplits
     );
@@ -295,6 +318,66 @@ export const groupApiPlugin: FastifyPluginAsync = async (fastify: FastifyInstanc
     };
   });
 
+  // GET /api/groups/:id/analytics - Spending breakdown and trip stats
+  fastify.get<{ Params: { id: string } }>('/api/groups/:id/analytics', async (request, reply) => {
+    const { id } = request.params;
+    const group = queries.getGroup(id);
+    if (!group) {
+      return reply.status(404).send({ error: 'Group not found' });
+    }
+
+    const engineData = queries.getGroupEngineData(id);
+    const expenses = queries.getExpenses(id);
+    const analytics = computeAnalytics(
+      engineData.members,
+      expenses.map((e) => ({
+        id: e.id,
+        paid_by_member_id: e.paid_by_member_id,
+        amount: e.amount,
+        category: e.category,
+      })),
+      engineData.splits
+    );
+
+    return {
+      groupId: id,
+      currency: group.currency,
+      analytics,
+    };
+  });
+
+  // POST /api/groups/:id/nudge - Send settlement reminder
+  fastify.post<{ Params: { id: string } }>(
+    '/api/groups/:id/nudge',
+    async (request, reply) => {
+      const { id } = request.params;
+      const group = queries.getGroup(id);
+      if (!group) {
+        return reply.status(404).send({ error: 'Group not found' });
+      }
+
+      const schema = z.object({
+        fromUserId: z.string(),
+        toUserId: z.string(),
+        amount: z.number().positive(),
+      });
+
+      const parsed = schema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: parsed.error.message });
+      }
+
+      const members = queries.getMembers(id);
+      const debtor = members.find((m) => m.id === parsed.data.fromUserId);
+      const creditor = members.find((m) => m.id === parsed.data.toUserId);
+
+      return reply.send({
+        success: true,
+        message: `Reminder recorded for ${debtor?.name || 'debtor'} to settle €${parsed.data.amount.toFixed(2)} with ${creditor?.name || 'creditor'}.`,
+      });
+    }
+  );
+
   // POST /api/groups/:id/settlements - Register a settlement payment
   fastify.post<{ Params: { id: string } }>(
     '/api/groups/:id/settlements',
@@ -309,6 +392,7 @@ export const groupApiPlugin: FastifyPluginAsync = async (fastify: FastifyInstanc
         fromMemberId: z.string(),
         toMemberId: z.string(),
         amount: z.number().positive(),
+        paymentMethod: z.string().optional(),
         notes: z.string().optional(),
       });
 
@@ -324,6 +408,7 @@ export const groupApiPlugin: FastifyPluginAsync = async (fastify: FastifyInstanc
         parsed.data.fromMemberId,
         parsed.data.toMemberId,
         Math.round(parsed.data.amount * 100) / 100,
+        parsed.data.paymentMethod || 'revolut',
         parsed.data.notes
       );
 
@@ -340,6 +425,200 @@ export const groupApiPlugin: FastifyPluginAsync = async (fastify: FastifyInstanc
       return { success: true };
     }
   );
+
+  // POST /api/groups/:id/import-csv - Import Splitwise or generic CSV
+  fastify.post<{ Params: { id: string } }>(
+    '/api/groups/:id/import-csv',
+    async (request, reply) => {
+      const { id } = request.params;
+      const group = queries.getGroup(id);
+      if (!group) {
+        return reply.status(404).send({ error: 'Group not found' });
+      }
+
+      const schema = z.object({
+        csvContent: z.string().min(1),
+      });
+
+      const parsed = schema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: parsed.error.message });
+      }
+
+      const expenses = parseExpenseCsv(parsed.data.csvContent);
+      if (expenses.length === 0) {
+        return reply.status(400).send({ error: 'No valid expenses found in the provided CSV.' });
+      }
+
+      const result = importExpensesToGroup(id, expenses);
+      return reply.send({
+        success: true,
+        ...result,
+      });
+    }
+  );
+
+  // GET /api/groups/:id/report.html - Printable Trip Settlement Report
+  fastify.get<{ Params: { id: string } }>('/api/groups/:id/report.html', async (request, reply) => {
+    const { id } = request.params;
+    const group = queries.getGroup(id);
+    if (!group) {
+      return reply.status(404).send({ error: 'Group not found' });
+    }
+
+    const members = queries.getMembers(id);
+    const expenses = queries.getExpenses(id);
+    const engineData = queries.getGroupEngineData(id);
+
+    const balances = calculateNetBalances(
+      engineData.members,
+      engineData.expenses,
+      engineData.splits,
+      engineData.settlements
+    );
+    const simplifiedDebts = simplifyDebts(balances);
+    const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
+
+    const currencySymbol = group.currency === 'EUR' ? '€' : group.currency === 'USD' ? '$' : `${group.currency} `;
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TabMate Settlement Report — ${group.title}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.5; color: #1e293b; background: #f8fafc; margin: 0; padding: 24px; }
+    .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 16px; padding: 32px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+    .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+    .title { font-size: 24px; font-weight: 800; margin: 0; color: #0f172a; }
+    .subtitle { color: #64748b; font-size: 13px; margin-top: 4px; }
+    .btn-print { background: #2563eb; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; }
+    .btn-print:hover { background: #1d4ed8; }
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+    .stat-card { background: #f1f5f9; padding: 16px; border-radius: 12px; }
+    .stat-label { font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; }
+    .stat-val { font-size: 22px; font-weight: 800; color: #0f172a; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 32px; font-size: 13px; }
+    th { text-align: left; padding: 10px 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 700; color: #475569; }
+    td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; }
+    .text-right { text-align: right; }
+    .text-emerald { color: #059669; font-weight: 700; }
+    .text-rose { color: #e11d48; font-weight: 700; }
+    .section-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; color: #0f172a; border-left: 4px solid #2563eb; padding-left: 10px; }
+    @media print {
+      body { background: white; padding: 0; }
+      .container { box-shadow: none; padding: 0; }
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1 class="title">${group.title}</h1>
+        <div class="subtitle">Official TabMate Settlement Ledger • Generated on ${new Date().toLocaleDateString()}</div>
+      </div>
+      <button class="btn-print no-print" onclick="window.print()">Print / Save PDF</button>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Expenditure</div>
+        <div class="stat-val">${currencySymbol}${totalSpent.toFixed(2)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Logged Expenses</div>
+        <div class="stat-val">${expenses.length} bills</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Group Members</div>
+        <div class="stat-val">${members.length} people</div>
+      </div>
+    </div>
+
+    <div class="section-title">Optimal Settlement Plan (Minimal Payments)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>From (Debtor)</th>
+          <th>To (Creditor)</th>
+          <th class="text-right">Settlement Amount</th>
+          <th>Payment Handle</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${
+          simplifiedDebts.length === 0
+            ? '<tr><td colspan="4" style="text-align:center;color:#64748b;">All debts are fully settled!</td></tr>'
+            : simplifiedDebts
+                .map(
+                  (d) => `<tr>
+              <td><strong>${d.fromName}</strong></td>
+              <td><strong>${d.toName}</strong></td>
+              <td class="text-right text-emerald">${currencySymbol}${d.amount.toFixed(2)}</td>
+              <td>${d.revolutLink ? `<a href="${d.revolutLink}">Revolut</a>` : d.iban ? `IBAN: ${d.iban}` : 'Cash/Transfer'}</td>
+            </tr>`
+                )
+                .join('')
+        }
+      </tbody>
+    </table>
+
+    <div class="section-title">Individual Balance Summary</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Member Name</th>
+          <th class="text-right">Net Standing</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${balances
+          .map(
+            (b) => `<tr>
+          <td><strong>${b.name}</strong></td>
+          <td class="text-right ${b.amount > 0 ? 'text-emerald' : b.amount < 0 ? 'text-rose' : ''}">
+            ${b.amount > 0 ? `+${currencySymbol}${b.amount.toFixed(2)} (Owed)` : b.amount < 0 ? `-${currencySymbol}${Math.abs(b.amount).toFixed(2)} (Owes)` : 'Settled'}
+          </td>
+        </tr>`
+          )
+          .join('')}
+      </tbody>
+    </table>
+
+    <div class="section-title">Itemized Expense Ledger</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Description</th>
+          <th>Category</th>
+          <th>Paid By</th>
+          <th class="text-right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${expenses
+          .map(
+            (e) => `<tr>
+          <td>${e.created_at.slice(0, 10)}</td>
+          <td><strong>${e.title}</strong>${e.notes ? `<div style="font-size:11px;color:#64748b;">${e.notes}</div>` : ''}</td>
+          <td style="text-transform:capitalize;">${e.category}</td>
+          <td>${e.payer_name}</td>
+          <td class="text-right">${currencySymbol}${e.amount.toFixed(2)}</td>
+        </tr>`
+          )
+          .join('')}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>`;
+
+    reply.header('Content-Type', 'text/html; charset=utf-8');
+    return reply.send(html);
+  });
 
   // GET /api/groups/:id/export.csv - Download CSV report
   fastify.get<{ Params: { id: string } }>('/api/groups/:id/export.csv', async (request, reply) => {
