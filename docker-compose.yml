@@ -1,0 +1,20 @@
+services:
+  tabmate:
+    build: .
+    container_name: tabmate-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - HOST=0.0.0.0
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - DEMO_MODE=${DEMO_MODE:-true}
+      - DATABASE_PATH=/data/tabmate.db
+      - WEBAPP_URL=${WEBAPP_URL:-http://localhost:8080}
+    volumes:
+      - tabmate_data:/data
+
+volumes:
+  tabmate_data:
+    driver: local

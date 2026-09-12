@@ -1,0 +1,16 @@
+{
+  "name": "tabmate-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Telegram Mini App and bot for group expense splitting and debt settlement",
+  "scripts": {
+    "dev:server": "npm --prefix server run dev",
+    "dev:web": "npm --prefix web run dev",
+    "build:server": "npm --prefix server run build",
+    "build:web": "npm --prefix web run build",
+    "build": "npm run build:web && npm run build:server",
+    "test:server": "npm --prefix server test",
+    "test": "npm run test:server",
+    "start": "node server/dist/index.js"
+  }
+}
