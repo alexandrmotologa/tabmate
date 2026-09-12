@@ -1,8 +1,61 @@
-# TabMate
+<p align="center">
+  <img src="docs/images/logo.png?raw=true" alt="TabMate Logo" width="140" style="border-radius: 28px;" />
+</p>
 
-TabMate is an ad-free Telegram Mini App and bot for splitting group expenses and settling debts. It operates directly inside Telegram group chats or through a web browser. Debts are simplified into the fewest possible transactions using a greedy minimum cash flow algorithm, and friends can settle balances directly through Revolut, PayPal, Monzo, or IBAN transfers.
+<h1 align="center">TabMate</h1>
 
-![TabMate Architecture](docs/images/architecture.svg)
+<p align="center">
+  <b>Ad-free Telegram Mini App & bot for frictionless group expense splitting and debt settlement.</b>
+</p>
+
+<p align="center">
+  <a href="https://github.com/alexandrmotologa/tabmate/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/alexandrmotologa/tabmate/ci.yml?branch=main&style=flat-square&logo=github&label=CI" alt="CI Status" /></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22%20%7C%2024-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js" /></a>
+  <a href="https://react.dev/"><img src="https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React 18" /></a>
+  <a href="https://core.telegram.org/bots/webapps"><img src="https://img.shields.io/badge/Telegram-Mini%20App-24A1DE?style=flat-square&logo=telegram&logoColor=white" alt="Telegram Mini App" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License" /></a>
+</p>
+
+<p align="center">
+  TabMate operates directly inside Telegram group chats or through a web browser. Debts are simplified into the fewest possible transactions using a greedy minimum cash flow algorithm, and friends can settle balances directly through Revolut, PayPal, Monzo, or IBAN transfers.
+</p>
+
+---
+
+## Screenshots
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center" width="33%">
+        <b>Bills & Shared Ledger</b><br/><br/>
+        <img src="docs/images/screenshot_bills.png?raw=true" alt="Bills Ledger" width="280" />
+      </td>
+      <td align="center" width="33%">
+        <b>Simplified Debts & 1-Tap Pay</b><br/><br/>
+        <img src="docs/images/screenshot_debts.png?raw=true" alt="Simplified Debts" width="280" />
+      </td>
+      <td align="center" width="33%">
+        <b>Visual Spending Analytics</b><br/><br/>
+        <img src="docs/images/screenshot_analytics.png?raw=true" alt="Spending Analytics" width="280" />
+      </td>
+    </tr>
+    <tr>
+      <td align="center" width="33%">
+        <b>Partial Settlements & Payment Modal</b><br/><br/>
+        <img src="docs/images/screenshot_settle_modal.png?raw=true" alt="Settlement Modal" width="280" />
+      </td>
+      <td align="center" width="33%">
+        <b>Itemized Receipt Splitter</b><br/><br/>
+        <img src="docs/images/screenshot_receipt_splitter.png?raw=true" alt="Receipt Splitter" width="280" />
+      </td>
+      <td align="center" width="33%">
+        <b>Full Architecture & Flow</b><br/><br/>
+        <img src="docs/images/architecture.svg?raw=true" alt="Architecture" width="280" />
+      </td>
+    </tr>
+  </table>
+</div>
 
 ## Features
 

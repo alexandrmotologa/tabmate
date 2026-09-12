@@ -1,0 +1,205 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="squircle-clip">
+      <rect x="24" y="24" width="976" height="976" rx="220" />
+    </clipPath>
+
+    <!-- Electric Cyan Gradient for Keen Optics & Telemetry -->
+    <linearGradient id="cyan-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#00f5ff"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+
+    <!-- Warm Amber Gold for Beak & Balance Pivot -->
+    <linearGradient id="gold-pivot" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="30%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+
+    <!-- Volumetric Slate Light (Left Lit Facets) -->
+    <linearGradient id="facet-lit-bright" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#64748b"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+
+    <linearGradient id="facet-lit-mid" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+
+    <linearGradient id="facet-lit-dark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+
+    <!-- Volumetric Slate Shadow (Right Shaded Facets) -->
+    <linearGradient id="facet-shade-mid" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+
+    <linearGradient id="facet-shade-dark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#060913"/>
+    </linearGradient>
+
+    <filter id="card-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#0f172a" flood-opacity="0.16" />
+    </filter>
+  </defs>
+
+  <!-- Luxury White Squircle Container -->
+  <rect x="24" y="24" width="976" height="976" rx="220" fill="#ffffff" stroke="#e2e8f0" stroke-width="6" />
+
+  <g clip-path="url(#squircle-clip)">
+    <g transform="translate(512, 512)" filter="url(#card-shadow)">
+
+      <!-- Hexagonal Architectural Gateway Frame -->
+      <polygon points="
+        0,-395
+        342,-198
+        342,198
+        0,395
+        -342,198
+        -342,-198
+      " fill="none" stroke="#0f172a" stroke-width="36" stroke-linejoin="round" />
+
+      <!-- Inner Cyan Telemetry Ring -->
+      <polygon points="
+        0,-360
+        311,-180
+        311,180
+        0,360
+        -311,180
+        -311,-180
+      " fill="none" stroke="#00f5ff" stroke-width="4" opacity="0.4" stroke-dasharray="16, 12" />
+
+      <!-- Horizontal Balance Horizon (Zero-Debt Metric Axis) -->
+      <line x1="-260" y1="215" x2="260" y2="215" stroke="#00f5ff" stroke-width="2" opacity="0.3" stroke-dasharray="8, 8" />
+
+      <!-- ==================================================== -->
+      <!-- 100% Watertight Solid Base Silhouette (Heroic Armor) -->
+      <!-- ==================================================== -->
+      <path d="
+        M 0, -210
+        L 80, -220
+        L 180, -325
+        L 155, -165
+        L 235, -70
+        L 255, 60
+        L 185, 200
+        L 100, 275
+        L 0, 315
+        L -100, 275
+        L -185, 200
+        L -255, 60
+        L -235, -70
+        L -155, -165
+        L -180, -325
+        L -80, -220
+        Z
+      " fill="#070a12" stroke="#0f172a" stroke-width="14" stroke-linejoin="round" />
+
+      <!-- ==================================================== -->
+      <!-- Low-Poly Origami Facets (Volumetric Lighting)       -->
+      <!-- Left (x > 0) is LIT, Right (x < 0) is SHADED         -->
+      <!-- ==================================================== -->
+
+      <!-- Alert Ear Tufts (Horns) -->
+      <polygon points="80,-220 180,-325 155,-165" fill="url(#facet-lit-bright)" />
+      <polygon points="0,-210 80,-220 155,-165 0,-130" fill="url(#facet-lit-mid)" />
+
+      <polygon points="-80,-220 -180,-325 -155,-165" fill="url(#facet-shade-mid)" />
+      <polygon points="0,-210 -80,-220 -155,-165 0,-130" fill="url(#facet-shade-dark)" />
+
+      <!-- Temples / Upper Facial Discs -->
+      <polygon points="155,-165 235,-70 135,-65 0,-130" fill="url(#facet-lit-bright)" />
+      <polygon points="-155,-165 -235,-70 -135,-65 0,-130" fill="url(#facet-shade-mid)" />
+
+      <!-- Outer Wing Shoulders -->
+      <polygon points="235,-70 255,60 165,30 135,-65" fill="url(#facet-lit-mid)" />
+      <polygon points="-235,-70 -255,60 -165,30 -135,-65" fill="url(#facet-shade-dark)" />
+
+      <!-- Wing Primary Flight Feathers (Sweeping Flanks) -->
+      <polygon points="255,60 185,200 130,135 165,30" fill="url(#facet-lit-dark)" />
+      <polygon points="-255,60 -185,200 -130,135 -165,30" fill="#070a12" />
+
+      <!-- Wing Lower Tips -->
+      <polygon points="185,200 100,275 75,205 130,135" fill="url(#facet-lit-dark)" />
+      <polygon points="-185,200 -100,275 -75,205 -130,135" fill="#060910" />
+
+      <!-- ==================================================== -->
+      <!-- Facial Disc & Eye Cavities                           -->
+      <!-- ==================================================== -->
+      <!-- Forehead Keystone Wedge -->
+      <polygon points="0,-130 55,-75 0,-70" fill="url(#facet-lit-bright)" />
+      <polygon points="0,-130 -55,-75 0,-70" fill="url(#facet-shade-mid)" />
+
+      <!-- Deep Eye Sockets -->
+      <polygon points="0,-70 55,-75 135,-65 145,-5 60,-10 0,-25" fill="#0b0f19" />
+      <polygon points="0,-70 -55,-75 -135,-65 -145,-5 -60,-10 0,-25" fill="#04060c" />
+
+      <!-- ==================================================== -->
+      <!-- Predator Almond Eyes (Cant slanted 25° upward)       -->
+      <!-- ==================================================== -->
+      <!-- Left Eye Facet -->
+      <polygon points="35,-52 105,-62 130,-28 65,-22" fill="url(#cyan-glow)" />
+      <!-- Left Razor Pupil & Specular Reflection -->
+      <polygon points="72,-56 96,-59 86,-32 68,-34" fill="#ffffff" />
+
+      <!-- Right Eye Facet -->
+      <polygon points="-35,-52 -105,-62 -130,-28 -65,-22" fill="url(#cyan-glow)" />
+      <!-- Right Razor Pupil & Specular Reflection -->
+      <polygon points="-72,-56 -96,-59 -86,-32 -68,-34" fill="#ffffff" />
+
+      <!-- Under-Eye Geometric Cheek Highlights -->
+      <polygon points="60,-10 145,-5 165,30 85,25 0,20" fill="url(#facet-lit-bright)" />
+      <polygon points="-60,-10 -145,-5 -165,30 -85,25 0,20" fill="url(#facet-shade-mid)" />
+
+      <!-- ==================================================== -->
+      <!-- Golden Origami Beak (The Fulcrum / Balance Apex)     -->
+      <!-- ==================================================== -->
+      <polygon points="0,-70 28,-18 0,48" fill="url(#gold-pivot)" />
+      <polygon points="0,-70 -28,-18 0,48" fill="#b45309" />
+      <!-- Beak Under-Facet -->
+      <polygon points="0,48 20,0 0,18" fill="#fde047" />
+      <polygon points="0,48 -20,0 0,18" fill="#78350f" />
+
+      <!-- ==================================================== -->
+      <!-- Symmetrical Chevron Ledger Plates (Balanced Scales)  -->
+      <!-- ==================================================== -->
+      <!-- Upper Chest Plate -->
+      <polygon points="0,48 85,25 130,75 0,105" fill="url(#facet-lit-mid)" />
+      <polygon points="0,48 -85,25 -130,75 0,105" fill="url(#facet-shade-mid)" />
+
+      <!-- Mid Chest Chevron Plate (Balance Core) -->
+      <polygon points="0,105 130,75 130,135 60,165 0,175" fill="url(#facet-lit-bright)" />
+      <polygon points="0,105 -130,75 -130,135 -60,165 0,175" fill="url(#facet-shade-dark)" />
+
+      <!-- Lower Chevron Plate -->
+      <polygon points="0,175 60,165 75,205 0,245" fill="url(#facet-lit-mid)" />
+      <polygon points="0,175 -60,165 -75,205 0,245" fill="url(#facet-shade-mid)" />
+
+      <!-- Tail Keel Anchor Point -->
+      <polygon points="0,245 75,205 100,275 0,315" fill="url(#facet-lit-dark)" />
+      <polygon points="0,245 -75,205 -100,275 0,315" fill="#05070d" />
+
+      <!-- ==================================================== -->
+      <!-- Precision Balance Telemetry Core & Circuit Lines    -->
+      <!-- ==================================================== -->
+      <!-- Central Balance Telemetry Orb -->
+      <circle cx="0" cy="140" r="10" fill="#00f5ff" filter="url(#card-shadow)" />
+      <circle cx="0" cy="140" r="20" fill="none" stroke="#00f5ff" stroke-width="2.5" opacity="0.6" stroke-dasharray="6, 5" />
+
+      <!-- Vertical Plumb Line (Zero Error Proof) -->
+      <line x1="0" y1="-210" x2="0" y2="-70" stroke="#ffffff" stroke-width="2" opacity="0.45" />
+      <line x1="0" y1="48" x2="0" y2="315" stroke="#00f5ff" stroke-width="2" opacity="0.4" />
+
+      <!-- Lateral Scale Arms (Subtle Balance Guides) -->
+      <line x1="-130" y1="75" x2="130" y2="75" stroke="#00f5ff" stroke-width="1.5" opacity="0.3" />
+
+    </g>
+  </g>
+</svg>
